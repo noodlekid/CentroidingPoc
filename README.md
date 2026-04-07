@@ -54,6 +54,16 @@ If you want details:
 poetry run python -m crowsnest.poc.eval.profile_centroiding --cprofile-output artifacts/centroiding.prof --profile-detail
 ```
 
+## Next steps
+
+1. Prove the pipeline stages are functionally correct e2e.
+2. Validate centroiding quality with repeatable metrics 
+3. Build out the remaining stages through LIS mode and close the loop on attitude solution output.
+4. Add acceptance checks for attitude quality
+5. Start optimization work aimed at embedded deployment
+
+Short version: first make it right, then make it complete, then make it fast on target hardware.
+
 ## Reference
 
 - Zhang, G. (2017). *Star Identification*. https://doi.org/10.1007/978-3-662-53783-1
