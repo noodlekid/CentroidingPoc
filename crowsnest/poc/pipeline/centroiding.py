@@ -18,7 +18,6 @@ def estimate_background(image_array: npt.NDArray[np.uint8]) -> tuple[float, floa
     statistical background estimation
 
     pretty memory bound, reads the whole array
-
     """
     median_bg = float(np.median(image_array))
     noise_std = float(np.std(image_array))

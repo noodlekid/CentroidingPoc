@@ -1,6 +1,14 @@
 import numpy as np
+import numpy.typing as npt
 import cv2
+from typing import TypedDict
 
+
+class GroundTruth(TypedDict):
+    id: int
+    true_x: float
+    true_y: float
+    flux: float
 
 def generate_synthetic_starfield(
     width: int=800,
@@ -9,17 +17,17 @@ def generate_synthetic_starfield(
     max_flux: float=5000,
     base_noise: float =15,
     rng: np.random.Generator | None = None,
-):
+) -> tuple[npt.NDArray[np.uint8], list[GroundTruth]]:
     """
     generates synthetic star field with subpixel rendering and some noise
-    
+
     returns the image and a list of the true coordinates for validation
     """
     rng = rng if rng is not None else np.random.default_rng()
 
     # blank field
     image = np.zeros((height, width), dtype=np.float32)
-    ground_truth: list[dict[str, int | float]] = []
+    ground_truth: list[GroundTruth] = []
 
     for i in range(num_stars):
         # random sub pixels generation

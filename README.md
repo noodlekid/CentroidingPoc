@@ -15,6 +15,22 @@ poetry install
 poetry run python crowsnest/poc/run.py --mode run --output-image docs/images/poc_sample.png
 ```
 
+Use a real image as input:
+
+```bash
+poetry run python crowsnest/poc/run.py \
+	--mode run \
+	--input-source image \
+	--input-image /path/to/your/starfield.png \
+	--output-image docs/images/poc_real_input.png
+```
+
+If needed, force resize to the configured run dimensions:
+
+```bash
+poetry run python crowsnest/poc/run.py --mode run --input-source image --input-image /path/to/your/starfield.png --resize-input --width 800 --height 600
+```
+
 That command writes two files:
 - `docs/images/poc_sample_before.png`
 - `docs/images/poc_sample_after.png`

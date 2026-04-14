@@ -1,5 +1,4 @@
 import argparse
-import logging
 from pathlib import Path
 
 import cv2
@@ -8,9 +7,9 @@ import numpy.typing as npt
 
 from crowsnest.poc.eval.runner import (
     ScenarioConfig,
-    generate_scenario,
     run_centroiding_iteration,
 )
+from crowsnest.poc.io.frame_sources import FileFrameSource, FrameSource, SyntheticFrameSource
 from crowsnest.poc.logging_config import setup_logging
 from crowsnest.poc.pipeline.centroiding import (
     StarCandidate,
@@ -49,8 +48,8 @@ def build_before_after_visualization(
         max_pixels=max_pixels,
     )
 
-    before_bgr = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
-    after_bgr = before_bgr.copy()
+    before_bgr = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR).astype(np.uint8, copy=False)
+    after_bgr = before_bgr.copy().astype(np.uint8, copy=False)
 
     for star in stars:
         x_start = int(stats[star.id, cv2.CC_STAT_LEFT])
@@ -80,10 +79,27 @@ def build_before_after_visualization(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="CrowsNest iteration runner")
     parser.add_argument("--mode", choices=["run", "bench"], default="run")
+    parser.add_argument(
+        "--input-source",
+        choices=["synthetic", "image"],
+        default="synthetic",
+        help="Frame source used in run mode.",
+    )
+    parser.add_argument(
+        "--input-image",
+        type=Path,
+        default=None,
+        help="Path to a real input image when --input-source image.",
+    )
     parser.add_argument("--width", type=int, default=800)
     parser.add_argument("--height", type=int, default=600)
     parser.add_argument("--num-stars", type=int, default=50)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--resize-input",
+        action="store_true",
+        help="Resize real input images to --width/--height before detection.",
+    )
     parser.add_argument("--runs", type=int, default=30)
     parser.add_argument("--warmup-runs", type=int, default=5)
     parser.add_argument("--sigma-mul", type=float, default=5.0)
@@ -98,6 +114,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--log-level", default="INFO")
     parser.add_argument("--log-file", type=Path, default=None)
     return parser.parse_args()
+
+
+def build_frame_source(args: argparse.Namespace) -> FrameSource:
+    if args.input_source == "image":
+        if args.input_image is None:
+            raise ValueError("--input-image is required when --input-source image")
+        return FileFrameSource(
+            image_path=args.input_image,
+            target_width=args.width if args.resize_input else None,
+            target_height=args.height if args.resize_input else None,
+        )
+
+    return SyntheticFrameSource(
+        width=args.width,
+        height=args.height,
+        num_stars=args.num_stars,
+        seed=args.seed,
+    )
 
 
 if __name__ == "__main__":
@@ -116,6 +150,10 @@ if __name__ == "__main__":
     )
 
     if args.mode == "bench":
+        if args.input_source == "image":
+            logger.warning(
+                "--input-source image is ignored in bench mode; using synthetic benchmark scenario"
+            )
         timing, metrics = run_centroiding_iteration(
             config=cfg,
             sigma_mul=args.sigma_mul,
@@ -133,7 +171,9 @@ if __name__ == "__main__":
             metrics.matched_stars,
         )
     else:
-        frame, _ = generate_scenario(cfg)
+        frame_source = build_frame_source(args)
+        sample = frame_source.load()
+        frame = sample.frame
         before_image, after_image, stars = build_before_after_visualization(
             frame,
             sigma_mul=args.sigma_mul,
@@ -151,6 +191,7 @@ if __name__ == "__main__":
         cv2.imwrite(str(before_path), before_image)
         cv2.imwrite(str(after_path), after_image)
 
+        logger.info("Input source: %s", sample.source)
         logger.info("Detected %d stars", len(stars))
         logger.info("Before image saved to: %s", before_path)
         logger.info("After image saved to: %s", after_path)
